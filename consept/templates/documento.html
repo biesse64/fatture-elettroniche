@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% from "_campi_cliente.html" import campi_cliente with context %}
+{% from "_riga.html" import riga %}
+{% set nc = doc.tipo == 'TD04' %}
+{% set av = doc.tipo == 'AVV' %}
+{% set usd = doc.valuta == 'USD' %}
+{% block titolo %}{% if esistente %}{{ nome_documento(doc) }}{% else %}{{ 'Nuova nota di credito' if nc else ('Nuovo avviso di fattura' if av else 'Nuova fattura') }}{% endif %}{% endblock %}
+{% block contenuto %}
+<form id="form-doc" method="post" action="{{ url_for('documento', did=doc.id) if doc.id else url_for('documento_nuovo') }}" novalidate>
+<input type="hidden" name="tipo" value="{{ doc.tipo }}">
+
+<div class="intestazione-pagina">
+  <div>
+    <a class="indietro" href="{{ url_for('documenti', anno=doc.anno) }}">Documenti {{ doc.anno }}</a>
+    <h1>{% if esistente %}{{ nome_documento(doc) }}{% else %}{{ 'Nuova nota di credito' if nc else ('Nuovo avviso di fattura' if av else 'Nuova fattura') }}{% endif %}</h1>
+  </div>
+  <span class="chip s-bozza">{{ 'Avviso aperto' if av else 'Bozza' }}</span>
+</div>
+
+{% if doc.copia_di %}
+<p class="msg avviso">Copia di {{ doc.copia_di }}: numero nuovo e data di oggi. Controlla descrizioni, periodo,
+   importi{% if usd %} e cambio{% endif %} prima di generare.</p>
+{% elif nc and doc.rif_numero and not esistente %}
+<p class="msg avviso">Voci copiate dalla fattura n. {{ doc.rif_numero }}. Gli importi restano positivi: è il tipo
+   "nota di credito" a renderli un credito per il cliente. Per uno storno parziale riduci o togli le voci.</p>
+{% endif %}
+
+{% if errori %}
+<div class="messaggi" role="alert">{% for e in errori %}<p class="msg errore">{{ e }}</p>{% endfor %}</div>
+{% endif %}
+
+<div class="editor">
+  <div class="colonna-modulo">
+
+    <section class="blocco">
+      <h2>Cliente</h2>
+      <div class="cliente-scelta">
+        <label class="largo">Cerca per nome, partita IVA o codice
+          <input id="cliente-testo" list="lista-clienti" autocomplete="off"
+                 value="{{ mappa_clienti[doc.cliente_id].nome if doc.cliente_id in mappa_clienti else '' }}"
+                 placeholder="Inizia a scrivere il nome">
+        </label>
+        <button type="button" class="btn" id="apri-nuovo-cliente">Nuovo cliente</button>
+      </div>
+      <input type="hidden" name="cliente_id" id="cliente-id" value="{{ doc.cliente_id or '' }}">
+      <p class="dettagli-cliente" id="cliente-dettagli">{{ mappa_clienti[doc.cliente_id].dettagli if doc.cliente_id in mappa_clienti else '' }}</p>
+      <datalist id="lista-clienti">
+        {% for c in clienti %}<option value="{{ c.denominazione }}{% if c.piva or c.cf %} ({{ c.piva or c.cf }}){% endif %} [{{ c.codice }}]" data-id="{{ c.id }}"></option>{% endfor %}
+      </datalist>
+    </section>
+
+    <section class="blocco">
+      <h2>{{ 'Nota di credito' if nc else ('Avviso di fattura' if av else 'Fattura') }}</h2>
+      {% if av %}<p class="aiuto">L'avviso ha una numerazione sua e non va allo SDI. Quando il cliente paga, premi
+         «Pagato: crea la fattura»: nasce la fattura con il primo numero disponibile, già saldata.</p>{% endif %}
+      <div class="griglia">
+        <label>Numero {% if not av %}<small>oppure 24/A tra due già usati</small>{% endif %}
+          <input name="numero" value="{{ doc.numero }}{% if doc.suffisso and doc.tipo != 'AVV' %}/{{ doc.suffisso }}{% endif %}" class="corto"
+                 title="Di solito il numero proposto. Per un numero aggiunto tra due già usati: 24/A, 24/B, 24 bis">
+        </label>
+        <label>Data
+          <input name="data" type="date" value="{{ doc.data }}" id="data-doc">
+        </label>
+        {% if nc %}
+        <label>Fattura stornata <small>numero/anno, es. 22/2026</small>
+          <input name="rif_numero" value="{{ doc.rif_numero }}">
+        </label>
+        <label>Data della fattura stornata
+          <input name="rif_data" type="date" value="{{ doc.rif_data }}">
+        </label>
+        {% else %}
+        <label>Pagamento
+          <select name="pagamento" id="pagamento">
+            <option value="">come da cliente</option>
+            {% for p in pagamenti %}<option {% if doc.pagamento == p.nome %}selected{% endif %}>{{ p.nome }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Banca
+          <select name="banca_id" id="banca">
+            {% for b in banche %}<option value="{{ b.id }}" data-valuta="{{ b.valuta }}" {% if doc.banca_id == b.id %}selected{% endif %}>{{ b.nome }} ({{ b.valuta }})</option>{% endfor %}
+          </select>
+        </label>
+        {% endif %}
+        <label class="largo">Note in fattura <small>facoltative (causale)</small>
+          <textarea name="note" rows="3" data-ricco>{{ doc.note }}</textarea>
+          <small class="aiuto-ricco">Nelle descrizioni e nelle note: <b>G</b> per il grassetto, •≡ per l'elenco. Si vedono nel PDF; nella fattura elettronica resta testo semplice.</small>
+        </label>
+      </div>
+      <fieldset class="dollari">
+        <label class="spunta"><input type="checkbox" name="valuta" value="USD" id="valuta" {% if usd %}checked{% endif %}>
+          Copia per il cliente in dollari (USD)</label>
+        <div class="in-linea" id="riga-cambio" {% if not usd %}hidden{% endif %}>
+          <label for="cambio">Cambio: 1 USD =</label>
+          <input id="cambio" name="cambio" value="{{ doc.cambio | replace('.', ',') }}" inputmode="decimal" class="corto" placeholder="0,8925">
+          <span>EUR</span>
+        </div>
+        <p class="aiuto" id="aiuto-dollari" {% if not usd %}hidden{% endif %}>Scrivi i prezzi nella colonna <strong>Prezzo USD</strong>
+           (evidenziata): il prezzo in euro si calcola dal cambio e puoi correggerlo, ad esempio arrotondarlo.
+           Un prezzo in euro già scritto resta com'è: per ricalcolarlo dal cambio, cancellalo. Allo SDI va la fattura in euro; il cliente riceve anche la
+           copia PDF in dollari, con lo stesso numero e le coordinate della banca in USD.</p>
+      </fieldset>
+    </section>
+
+    <section class="blocco">
+      <h2>Voci</h2>
+      <p class="aiuto">Una voce per riga: quantità e prezzo, oppure solo l'importo. Una riga senza importo è solo testo.
+         Il codice IVA tra parentesi è quello predefinito del cliente: sceglierne un altro vale solo per quella voce.</p>
+      <table class="voci voci-consept {{ 'con-usd' if usd }}" id="voci">
+        <thead><tr><th>Descrizione</th><th class="num">Q.tà</th><th>U.M.</th>
+          <th class="num solo-usd col-usd">Prezzo USD</th><th class="num">Prezzo EUR</th><th class="num">Importo EUR</th>
+          <th>IVA</th><th><span class="nascosto">Togli</span></th></tr></thead>
+        <tbody>
+        {% for r in righe %}{{ riga(r, codici) }}{% else %}{{ riga({'descrizione': '', 'importo': ''}, codici) }}{% endfor %}
+        </tbody>
+      </table>
+      <button type="button" class="btn piccolo aggiungi">Aggiungi voce</button>
+      <datalist id="lista-um"><option value="giorni"></option><option value="day"></option><option value="ore"></option><option value="pz"></option></datalist>
+    </section>
+  </div>
+
+  <aside class="colonna-conto">
+    <div class="conto" id="conto" aria-live="polite">
+      <h2>Riepilogo</h2>
+      <table class="gruppi-iva"><tbody id="gruppi"></tbody></table>
+      <dl>
+        <div><dt>Imponibile</dt><dd data-k="imponibile">€ 0,00</dd></div>
+        <div><dt>IVA</dt><dd data-k="iva">€ 0,00</dd></div>
+      </dl>
+      <p class="totale"><span>Totale</span> <strong data-k="totale">€ 0,00</strong></p>
+      <p class="totale-usd" id="totale-usd" {% if not usd %}hidden{% endif %}><span>Copia per il cliente</span> <strong data-k="totale_valuta">USD 0,00</strong></p>
+      <div id="scadenze-box" hidden>
+        <h3>Scadenze</h3>
+        <ul class="scadenze" id="scadenze"></ul>
+      </div>
+      <p class="aiuto" id="nota-bollo" hidden>Bollo virtuale dichiarato nell'XML (non addebitato).</p>
+      <p class="msg errore" id="errore-calcolo" hidden></p>
+      <p class="msg avviso" id="manca-usd" hidden></p>
+    </div>
+
+    <div class="azioni">
+      {% if av %}
+      <button type="submit" name="azione" value="salva" class="btn primario">Salva avviso</button>
+      {% else %}
+      <button type="submit" name="azione" value="genera" class="btn primario">Genera {{ 'nota di credito' if nc else 'fattura' }}</button>
+      {% endif %}
+      <button type="submit" formaction="{{ url_for('anteprima') }}" formtarget="_blank" class="btn">Anteprima PDF</button>
+      <button type="submit" formaction="{{ url_for('anteprima') }}" formtarget="_blank" name="copia" value="USD" class="btn solo-usd-btn" {% if not usd %}hidden{% endif %}>Anteprima copia in dollari</button>
+      {% if not av %}<button type="submit" name="azione" value="salva" class="btn">Salva bozza</button>{% endif %}
+      {% if esistente %}
+      <a class="btn" href="{{ url_for('documento_nuovo', copia=doc.id) }}">Duplica</a>
+      <button type="submit" form="form-elimina" class="btn testo pericolo">Elimina {{ 'avviso' if av else 'bozza' }}</button>
+      {% endif %}
+    </div>
+    {% if av and esistente %}
+    <div class="converti">
+      <h3>Il cliente ha pagato?</h3>
+      <label>Data del pagamento <input type="date" name="data_pagamento" value="{{ oggi }}" form="form-converti"></label>
+      <button type="submit" form="form-converti" class="btn primario">Pagato: crea la fattura</button>
+      <p class="aiuto">Salva prima le eventuali modifiche: la fattura copia l'avviso salvato.</p>
+    </div>
+    {% endif %}
+    <p class="aiuto" {% if av %}hidden{% endif %}>Genera crea il file XML per lo SDI e la copia PDF{% if usd %} (in euro e in dollari){% endif %}.</p>
+  </aside>
+</div>
+</form>
+
+{% if esistente %}
+<form id="form-elimina" method="post" action="{{ url_for('elimina', did=doc.id) }}"
+      onsubmit="return confirm('{{ 'Eliminare questo avviso?' if av else 'Eliminare questa bozza?' }}')"></form>
+{% if av %}
+<form id="form-converti" method="post" action="{{ url_for('converti_avviso', did=doc.id) }}"
+      onsubmit="return confirm('Il cliente ha pagato: creare la fattura da questo avviso?')"></form>
+{% endif %}
+{% endif %}
+
+<template id="modello-voce">{{ riga({'descrizione': '', 'importo': ''}, codici) }}</template>
+
+<dialog id="dlg-cliente">
+  <form id="form-cliente" method="dialog">
+    <h2>Nuovo cliente</h2>
+    <div class="messaggi" id="errori-cliente"></div>
+    {{ campi_cliente({'nazione': 'IT'}, codici_iva()) }}
+    <div class="azioni-dialogo">
+      <button type="button" class="btn" id="chiudi-cliente">Annulla</button>
+      <button type="submit" class="btn primario">Salva cliente</button>
+    </div>
+  </form>
+</dialog>
+
+<script id="dati-clienti" type="application/json">{{ mappa_clienti | tojson }}</script>
+{% endblock %}
+
+{% block script %}<script src="{{ url_for('static', filename='documento.js') }}"></script>
+<script src="{{ url_for('static', filename='testo_ricco.js') }}"></script>{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block titolo %}{{ nome_documento(doc) }}{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <div>
+    <a class="indietro" href="{{ url_for('documenti', vista='avvisi') }}">Avvisi di fattura</a>
+    <h1>{{ nome_documento(doc) }}</h1>
+  </div>
+  <span class="chip s-convertito">{{ STATI.get(doc.stato, doc.stato) }}</span>
+</div>
+<div class="editor">
+  <div class="colonna-modulo">
+    <section class="blocco">
+      <h2>Pagato</h2>
+      <p>Pagamento ricevuto il {{ doc.saldato_il | data_it }}{% if fattura %}: l'avviso è diventato la
+         <a href="{{ url_for('documento', did=fattura.id) }}"><strong>{{ nome_documento(fattura) }}</strong></a>
+         ({{ STATI[fattura.stato] | lower }}){% endif %}.</p>
+    </section>
+    <section class="blocco">
+      <h2>Cliente</h2>
+      {% if cli %}<p><a href="{{ url_for('cliente', cid=cli.id) }}"><strong>{{ cli.denominazione }}</strong></a></p>{% endif %}
+    </section>
+    <section class="blocco">
+      <h2>Voci</h2>
+      <table class="voci sola-lettura"><tbody>
+        {% for r in righe %}{% if r.descrizione or r.importo %}
+        <tr><td>{{ r.descrizione }}</td><td class="num">{% if r.importo %}{{ r.importo | euro }}{% endif %}</td></tr>
+        {% endif %}{% endfor %}
+      </tbody></table>
+    </section>
+  </div>
+  <aside class="colonna-conto">
+    <div class="conto"><h2>Riepilogo</h2>
+      <p class="totale"><span>Totale</span> <strong>{{ doc.totale | euro }}</strong></p></div>
+    <div class="azioni">
+      <a class="btn" href="{{ url_for('pdf_avviso', did=doc.id) }}" target="_blank">PDF dell'avviso</a>
+      {% if fattura %}<a class="btn primario" href="{{ url_for('documento', did=fattura.id) }}">Apri la fattura</a>{% endif %}
+      <a class="btn" href="{{ url_for('documento_nuovo', copia=doc.id) }}">Duplica avviso</a>
+    </div>
+  </aside>
+</div>
+{% endblock %}

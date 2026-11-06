@@ -1,0 +1,75 @@
+{% macro campi_cliente(c, codici) %}
+<div class="griglia">
+  <label class="largo">Ragione sociale, oppure nome e cognome
+    <input name="denominazione" value="{{ c.denominazione }}" required autocomplete="off">
+  </label>
+  <label>Nazione <small>IT per l'Italia, altrimenti la sigla: DE, CH, US…</small>
+    <input name="nazione" value="{{ c.nazione or 'IT' }}" maxlength="2" class="maiuscolo corto" required>
+  </label>
+  <label>Codice IVA predefinito <small>vale per le righe delle sue fatture</small>
+    <select name="codice_iva">
+      <option value="">{{ C.CODICE_IVA_PREDEFINITO }} (standard)</option>
+      {% for k in codici %}
+      <option value="{{ k.codice }}" {% if c.codice_iva == k.codice %}selected{% endif %}>{{ k.codice }} – {{ k.descrizione or k.rif_norm or ('IVA ' ~ k.aliquota ~ '%') }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Partita IVA <small class="solo-italia">11 cifre</small><small class="solo-estero">VAT number, se c'è</small>
+    <input name="piva" value="{{ c.piva }}" maxlength="28" autocomplete="off">
+  </label>
+  <label>Codice fiscale <small class="solo-italia">per le società di solito uguale alla partita IVA</small>
+    <input name="cf" value="{{ c.cf }}" maxlength="16" class="maiuscolo" autocomplete="off">
+  </label>
+  <label class="solo-estero largo">Identificativo fiscale estero <small>se diverso dalla partita IVA; per i clienti senza VAT scrivi OO99999999999</small>
+    <input name="id_estero" value="{{ c.id_estero }}" maxlength="28" autocomplete="off">
+  </label>
+  <label class="largo">Indirizzo
+    <input name="indirizzo" value="{{ c.indirizzo }}" required>
+  </label>
+  <label>CAP
+    <input name="cap" value="{{ c.cap }}" maxlength="10">
+  </label>
+  <label>Comune / città
+    <input name="comune" value="{{ c.comune }}" required>
+  </label>
+  <label class="solo-italia">Provincia
+    <input name="provincia" value="{{ c.provincia }}" maxlength="2" class="maiuscolo corto">
+  </label>
+  <label class="solo-italia">Codice destinatario <small>7 caratteri; vuoto se c'è la PEC o per i privati</small>
+    <input name="codice_destinatario" value="{{ c.codice_destinatario }}" maxlength="7" class="maiuscolo"
+           list="codici-sdi" autocomplete="off" placeholder="scegli o scrivi">
+    <datalist id="codici-sdi">{% for k, testo in codici_destinatario() %}<option value="{{ k }}">{{ testo }}</option>{% endfor %}</datalist>
+  </label>
+  <label class="solo-italia">PEC <small>se non c'è il codice destinatario</small>
+    <input name="pec" type="email" value="{{ c.pec }}">
+  </label>
+  <label>Pagamento <small>proposto nelle sue fatture</small>
+    <select name="pagamento">
+      <option value="">{{ C.PAGAMENTO_PREDEFINITO }} (standard)</option>
+      {% for p in lista_pagamenti() %}
+      <option {% if c.pagamento == p.nome %}selected{% endif %}>{{ p.nome }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Email per la copia PDF
+    <input name="email" type="email" value="{{ c.email }}">
+  </label>
+  <label>Persona di riferimento
+    <input name="riferimento" value="{{ c.riferimento }}">
+  </label>
+  <fieldset class="largo intento solo-italia">
+    <legend>Dichiarazione d'intento <small>solo per gli esportatori abituali (codice IVA N8c)</small></legend>
+    <div class="griglia">
+      <label>Protocollo <small>es. 25121510483059252-000001</small>
+        <input name="intento_protocollo" value="{{ c.intento_protocollo }}" maxlength="24" autocomplete="off">
+      </label>
+      <label>Data
+        <input name="intento_data" type="date" value="{{ c.intento_data }}">
+      </label>
+    </div>
+  </fieldset>
+  <label class="largo">Note
+    <textarea name="note" rows="2">{{ c.note }}</textarea>
+  </label>
+</div>
+{% endmacro %}

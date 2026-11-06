@@ -1,0 +1,16 @@
+{% macro riga(r, codici) %}
+<tr class="voce">
+  <td><input type="hidden" name="r_tipo" value="onorario">
+    <textarea name="r_descr" rows="1" aria-label="Descrizione" data-ricco>{{ r.descrizione }}</textarea></td>
+  <td class="num"><input name="r_qta" value="{{ r.quantita | quantita }}" inputmode="decimal" aria-label="Quantità" class="qta" placeholder="1"></td>
+  <td><input name="r_um" value="{{ r.um or '' }}" aria-label="Unità di misura" class="um" list="lista-um"></td>
+  <td class="num solo-usd"><input name="r_prezzo_v" value="{{ r.prezzo_valuta | importo_campo }}" inputmode="decimal" aria-label="Prezzo unitario in dollari" class="prezzo prezzo-usd" placeholder="USD"></td>
+  <td class="num"><input name="r_prezzo" value="{{ r.prezzo | importo_campo }}" inputmode="decimal" aria-label="Prezzo unitario in euro" class="prezzo" placeholder="EUR"></td>
+  <td class="num"><input name="r_importo" value="{{ r.importo | importo_campo }}" inputmode="decimal" aria-label="Importo in euro" class="importo"></td>
+  <td><select name="r_codice" aria-label="Codice IVA" class="codice">
+      <option value="">cliente</option>
+      {% for k in codici %}<option value="{{ k.codice }}" {% if r.codice_iva == k.codice %}selected{% endif %}>{{ k.codice }}</option>{% endfor %}
+    </select></td>
+  <td><button type="button" class="togli" aria-label="Togli questa voce">&times;</button></td>
+</tr>
+{% endmacro %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block titolo %}Impostazioni{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina"><h1>Impostazioni</h1></div>
+<form method="post" class="stretto">
+  <section class="blocco">
+    <h2>Numerazione {{ anno }}</h2>
+    <div class="griglia">
+      <label>Prima fattura emessa con questo programma <small>vuoto = parte da 1</small>
+        <input name="primo_numero" value="{{ primo }}" inputmode="numeric" class="corto">
+      </label>
+      <p class="aiuto">Se nel {{ anno }} hai già emesso fatture con un altro programma, scrivi qui il numero successivo
+         all'ultima. Prossimo numero proposto: <strong>{{ prossimo }}</strong>.</p>
+    </div>
+  </section>
+  <section class="blocco">
+    <h2>Contatti in testa alla fattura</h2>
+    <div class="griglia">
+      <label>Telefono<input name="telefono" value="{{ s.telefono }}"></label>
+      <label>Email<input name="email" type="email" value="{{ s.email }}"></label>
+      <label>PEC<input name="pec" type="email" value="{{ s.pec }}"></label>
+      <label>Sito<input name="web" value="{{ s.web }}"></label>
+    </div>
+    <p class="aiuto">Banche e condizioni di pagamento sono nella pagina <a href="{{ url_for('pagamenti') }}">Pagamenti e banche</a>.</p>
+  </section>
+  <section class="blocco">
+    <h2>Bollo</h2>
+    <label class="spunta"><input type="checkbox" name="bollo_virtuale" value="1" {% if bollo_virtuale %}checked{% endif %}>
+      Dichiara il bollo virtuale nell'XML quando dovuto</label>
+    <p class="aiuto">Spento: il bollo non compare né in fattura né nell'XML, e lo gestisce il commercialista a fine anno.
+       Acceso: per le fatture con operazioni senza IVA oltre 77,47 € (codici IVA con «Bollo» = Sì) l'XML dichiara
+       il bollo virtuale di 2 €, senza addebitarlo al cliente.</p>
+  </section>
+  <div class="azioni orizzontali"><button class="btn primario">Salva impostazioni</button></div>
+</form>
+
+{% if pec_attiva %}
+<form method="post" class="stretto">
+  <input type="hidden" name="azione" value="pec">
+  <section class="blocco">
+    <h2>Invio allo SDI via PEC</h2>
+    <p class="aiuto">Casella {{ C.PEC.indirizzo }} ({{ C.PEC.smtp_server }}, {{ C.PEC.imap_server }}).
+       La password resta nel Portachiavi del Mac, non nell'archivio.</p>
+    <div class="griglia">
+      <label>Password della PEC <small>vuoto = lascia quella salvata</small>
+        <input name="pec_password" type="password" autocomplete="off">
+      </label>
+      <label>Indirizzo dello SDI <small>si aggiorna da solo dopo il primo invio</small>
+        <input name="indirizzo_sdi" value="{{ indirizzo_sdi }}">
+      </label>
+    </div>
+    <div class="azioni orizzontali"><button class="btn primario">Salva e prova la connessione</button></div>
+  </section>
+</form>
+{% endif %}
+
+<section class="blocco stretto tenue">
+  <h2>Dati fissi</h2>
+  <p>{{ s.denominazione }}, C.F. e P.IVA {{ s.piva }}, regime ordinario, {{ s.indirizzo }}, {{ s.cap }} {{ s.comune }} ({{ s.provincia }}),
+     REA {{ s.rea_ufficio }} {{ s.rea_numero }}.</p>
+  <p class="aiuto">Archivio e documenti: <code>{{ C.DATI }}</code>. Prossimo file XML: n. {{ progressivo }}.</p>
+</section>
+
+<form method="post" action="{{ url_for('chiudi_programma') }}" class="stretto"
+      onsubmit="return confirm('Chiudere il programma? Si riapre con l\'icona nel Dock.')">
+  <button class="btn testo">Chiudi il programma</button>
+</form>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block titolo %}Programma chiuso{% endblock %}
+{% block contenuto %}
+<div class="vuoto">
+  <h2>Programma chiuso</h2>
+  <p>Puoi chiudere questa finestra del browser. Per riaprire il programma usa l'icona {{ C.NOME_APP if C.NOME_APP is defined else '' }} nel Dock.</p>
+</div>
+{% endblock %}

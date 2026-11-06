@@ -1,0 +1,30 @@
+# Mai nel repository: archivi, fatture, ricevute, dati dei clienti
+dati/
+**/dati/
+*.db
+*.db-journal
+*.sqlite
+uscita/
+*.xml
+*.p7m
+*.eml
+*.pdf
+*.xls
+*.xlsx
+*.defxml
+*.DefXml
+bozze_presenze.json
+
+# Materiale di lavoro e copie
+FILE_TO_CLAUDE/
+file_to_claude/
+_da_eliminare/
+doc/
+*.zip
+installa.log
+
+# Generati
+__pycache__/
+*.pyc
+.DS_Store
+out/

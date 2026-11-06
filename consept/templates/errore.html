@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block titolo %}Anteprima non disponibile{% endblock %}
+{% block contenuto %}
+<div class="blocco stretto">
+  <h1>Anteprima non disponibile</h1>
+  <p>Prima di creare il PDF manca qualcosa:</p>
+  <ul class="semplice">{% for e in errori %}<li>{{ e }}</li>{% endfor %}</ul>
+  <p class="aiuto">Chiudi questa scheda, completa il modulo e premi di nuovo Anteprima PDF.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titolo %}Fatture{% endblock %} - {{ C.STUDIO.intestazione }}</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='stile.css') }}">
+</head>
+<body>
+<header class="testata">
+  <a class="marchio" href="{{ url_for('documenti') }}">
+    <img src="{{ url_for('static', filename='logo_app.png') }}" alt="Consept">
+    <span>Fatture</span>
+  </a>
+  <nav>
+    {% set sezione = request.endpoint or '' %}
+    <a href="{{ url_for('documenti') }}" {% if sezione in ('documenti', 'documento', 'documento_nuovo') %}aria-current="page"{% endif %}>Documenti</a>
+    <a href="{{ url_for('clienti') }}" {% if sezione.startswith('client') %}aria-current="page"{% endif %}>Clienti</a>
+    <a href="{{ url_for('codici_iva') }}" {% if sezione.startswith('codic') %}aria-current="page"{% endif %}>Codici IVA</a>
+    <a href="{{ url_for('pagamenti') }}" {% if sezione in ('pagamenti', 'pagamento', 'banca') %}aria-current="page"{% endif %}>Pagamenti e banche</a>
+    <a href="{{ url_for('impostazioni') }}" {% if sezione == 'impostazioni' %}aria-current="page"{% endif %}>Impostazioni</a>
+    <form method="post" action="{{ url_for('chiudi_programma') }}" class="nav-chiudi"
+          onsubmit="return confirm('Chiudere il programma? Si riapre con l\'icona nel Dock.')">
+      <button title="Spegne il programma; si riapre con l'icona nel Dock">Chiudi</button>
+    </form>
+  </nav>
+  <a class="btn primario" href="{{ url_for('documento_nuovo') }}">Nuova fattura</a>
+</header>
+
+<main class="{% block classe_main %}{% endblock %}">
+  {% with messaggi = get_flashed_messages(with_categories=true) %}
+  {% if messaggi %}
+  <div class="messaggi" role="status">
+    {% for cat, m in messaggi %}<p class="msg {{ cat }}">{{ m }}</p>{% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+  {% block contenuto %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='controlli.js') }}"></script>
+{% block script %}{% endblock %}
+</body>
+</html>

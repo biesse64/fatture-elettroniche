@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block titolo %}{{ b.nome or 'Nuova banca' }}{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <div>
+    <a class="indietro" href="{{ url_for('pagamenti') }}">Pagamenti e banche</a>
+    <h1>{{ b.nome if bid else 'Nuova banca' }}</h1>
+  </div>
+</div>
+{% if errori %}
+<div class="messaggi" role="alert">{% for e in errori %}<p class="msg errore">{{ e }}</p>{% endfor %}</div>
+{% endif %}
+<form method="post" class="blocco stretto">
+  <div class="griglia">
+    <label class="largo">Nome <small>come compare in fattura</small>
+      <input name="nome" value="{{ b.nome }}" required>
+    </label>
+    <label>Valuta <small>EUR, USD…</small>
+      <input name="valuta" value="{{ b.valuta }}" maxlength="3" class="maiuscolo corto" required>
+    </label>
+    <label>BIC / SWIFT
+      <input name="bic" value="{{ b.bic }}" maxlength="11" class="maiuscolo">
+    </label>
+    <label class="largo">IBAN <small>vuoto per i conti senza IBAN (es. USA)</small>
+      <input name="iban" value="{{ b.iban }}" maxlength="34" class="maiuscolo" autocomplete="off">
+    </label>
+    <label class="largo">Dettagli <small>indirizzo della banca, intestatario, numero di conto, routing… stampati in fattura</small>
+      <textarea name="dettagli" rows="5">{{ b.dettagli }}</textarea>
+    </label>
+    <label class="spunta largo"><input type="checkbox" name="predefinita" value="1" {% if b.predefinita %}checked{% endif %}>
+      Predefinita per la sua valuta</label>
+  </div>
+  {% if uso %}<p class="aiuto">Indicata in {{ uso }} {{ 'fattura' if uso == 1 else 'fatture' }}.</p>{% endif %}
+  <div class="azioni orizzontali">
+    <button class="btn primario">Salva</button>
+    <a class="btn" href="{{ url_for('pagamenti') }}">Annulla</a>
+    {% if bid and not uso %}
+    <button class="btn testo pericolo" name="azione" value="elimina" formnovalidate
+            onclick="return confirm('Eliminare questa banca?')">Elimina</button>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

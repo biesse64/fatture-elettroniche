@@ -1,0 +1,18 @@
+{% macro riga(tipo, r, qta=False) %}
+<tr class="voce">
+  <td><input type="hidden" name="r_tipo" value="{{ tipo }}">
+    {% if tipo == 'anticipazione' %}
+    <input name="r_descr" value="{{ r.descrizione }}" aria-label="Descrizione" list="lista-anticipazioni" placeholder="es. Contributo unificato">
+    {% else %}
+    <textarea name="r_descr" rows="1" aria-label="Descrizione" data-ricco>{{ r.descrizione }}</textarea>
+    {% endif %}
+  </td>
+  {% if qta %}
+  <td class="num"><input name="r_qta" value="{{ r.quantita | quantita }}" inputmode="decimal" aria-label="Quantità" class="qta" placeholder="1"></td>
+  <td><input name="r_um" value="{{ r.um or '' }}" aria-label="Unità di misura" class="um" list="lista-um" placeholder="{{ 'pz' if tipo == 'vendita' else 'ore' }}"></td>
+  <td class="num"><input name="r_prezzo" value="{{ r.prezzo | importo_campo }}" inputmode="decimal" aria-label="Prezzo unitario" class="prezzo"></td>
+  {% endif %}
+  <td class="num"><input name="r_importo" value="{{ r.importo | importo_campo }}" inputmode="decimal" aria-label="Importo" class="importo"></td>
+  <td><button type="button" class="togli" aria-label="Togli questa voce">&times;</button></td>
+</tr>
+{% endmacro %}

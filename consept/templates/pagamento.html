@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titolo %}{{ p.nome or 'Nuovo pagamento' }}{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <div>
+    <a class="indietro" href="{{ url_for('pagamenti') }}">Pagamenti e banche</a>
+    <h1>{{ p.nome if pid else 'Nuovo pagamento' }}</h1>
+  </div>
+</div>
+{% if errori %}
+<div class="messaggi" role="alert">{% for e in errori %}<p class="msg errore">{{ e }}</p>{% endfor %}</div>
+{% endif %}
+<form method="post" class="blocco stretto">
+  <div class="griglia">
+    <label class="largo">Nome <small>come compare in fattura</small>
+      <input name="nome" value="{{ p.nome }}" required>
+    </label>
+    <label>Modalità <small>codice dell'XML</small>
+      <select name="modalita">
+        {% for k, v in modalita.items() %}<option value="{{ k }}" {% if p.modalita == k %}selected{% endif %}>{{ v }} ({{ k }})</option>{% endfor %}
+      </select>
+    </label>
+    <label>Giorni <small>0 = a vista; più rate: 30,60,90</small>
+      <input name="giorni" value="{{ p.giorni }}" class="corto" required>
+    </label>
+    <label class="spunta largo"><input type="checkbox" name="fine_mese" value="1" {% if p.fine_mese %}checked{% endif %}>
+      Fine mese (la scadenza va all'ultimo giorno del mese)</label>
+  </div>
+  {% if uso %}<p class="aiuto">In uso in {{ uso }} {{ 'cliente o fattura' if uso == 1 else 'clienti o fatture' }}.</p>{% endif %}
+  <div class="azioni orizzontali">
+    <button class="btn primario">Salva</button>
+    <a class="btn" href="{{ url_for('pagamenti') }}">Annulla</a>
+    {% if pid and not uso %}
+    <button class="btn testo pericolo" name="azione" value="elimina" formnovalidate
+            onclick="return confirm('Eliminare questo pagamento?')">Elimina</button>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

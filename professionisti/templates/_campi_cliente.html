@@ -1,0 +1,49 @@
+{% macro campi_cliente(c, pref='') %}
+<div class="griglia">
+  <label class="largo">Nome e cognome, oppure ragione sociale
+    <input name="denominazione" value="{{ c.denominazione }}" required autocomplete="off">
+  </label>
+  <label>Codice fiscale
+    <input name="cf" value="{{ c.cf }}" maxlength="16" class="maiuscolo" autocomplete="off">
+  </label>
+  <label>Partita IVA <small>solo per aziende e professionisti</small>
+    <input name="piva" value="{{ c.piva }}" maxlength="28" inputmode="numeric" autocomplete="off">
+  </label>
+  <label class="largo">Indirizzo
+    <input name="indirizzo" value="{{ c.indirizzo }}" required>
+  </label>
+  <label>CAP
+    <input name="cap" value="{{ c.cap }}" maxlength="10" inputmode="numeric">
+  </label>
+  <label>Comune
+    <input name="comune" value="{{ c.comune }}" required>
+  </label>
+  <label>Provincia
+    <input name="provincia" value="{{ c.provincia }}" maxlength="2" class="maiuscolo corto">
+  </label>
+  <label>Nazione
+    <input name="nazione" value="{{ c.nazione or 'IT' }}" maxlength="2" class="maiuscolo corto">
+  </label>
+  <label>Codice destinatario <small>7 caratteri; per i privati lascialo vuoto: in fattura va 0000000</small>
+    <input name="codice_destinatario" value="{{ c.codice_destinatario }}" maxlength="7" class="maiuscolo"
+           list="codici-sdi" autocomplete="off" placeholder="scegli o scrivi">
+    <datalist id="codici-sdi">{% for k, testo in codici_destinatario() %}<option value="{{ k }}">{{ testo }}</option>{% endfor %}</datalist>
+  </label>
+  <label>PEC <small>se non c'è il codice destinatario</small>
+    <input name="pec" type="email" value="{{ c.pec }}">
+  </label>
+  <label>Email per la copia PDF
+    <input name="email" type="email" value="{{ c.email }}">
+  </label>
+  {% if O.ritenuta %}
+  <label class="spunta largo">
+    <input type="checkbox" name="ritenuta" value="1" data-ritenuta {% if c.id %}data-scelta="1"{% endif %} {% if c.ritenuta %}checked{% endif %}>
+    Sostituto d'imposta: trattiene la ritenuta d'acconto del {{ O.ritenuta }}%
+    <small>aziende, professionisti, condomini ed enti sì; i privati no</small>
+  </label>
+  {% endif %}
+  <label class="largo">Note
+    <textarea name="note" rows="2">{{ c.note }}</textarea>
+  </label>
+</div>
+{% endmacro %}

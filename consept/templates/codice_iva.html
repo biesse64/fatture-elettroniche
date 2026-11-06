@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block titolo %}{{ codice or 'Nuovo codice IVA' }}{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <div>
+    <a class="indietro" href="{{ url_for('codici_iva') }}">Codici IVA</a>
+    <h1>{{ 'Codice IVA ' ~ codice if codice else 'Nuovo codice IVA' }}</h1>
+  </div>
+</div>
+{% if errori %}
+<div class="messaggi" role="alert">{% for e in errori %}<p class="msg errore">{{ e }}</p>{% endfor %}</div>
+{% endif %}
+<form method="post" class="blocco stretto">
+  <div class="griglia">
+    <label>Codice <small>breve, senza spazi (es. 22, N8c)</small>
+      <input name="codice" value="{{ k.codice }}" maxlength="10" required autocomplete="off">
+    </label>
+    <label>Aliquota IVA % <small>0 per le righe senza IVA</small>
+      <input name="aliquota" value="{{ k.aliquota }}" inputmode="decimal" class="corto" required>
+    </label>
+    <label class="largo">Descrizione <small>solo per te, compare negli elenchi</small>
+      <input name="descrizione" value="{{ k.descrizione }}">
+    </label>
+    <label class="largo">Natura <small>obbligatoria se l'aliquota è 0</small>
+      <select name="natura">
+        {% for n, testo in nature.items() %}<option value="{{ n }}" {% if k.natura == n %}selected{% endif %}>{{ testo }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="largo">Riferimento normativo <small>stampato in fattura accanto alle righe senza IVA</small>
+      <input name="rif_norm" value="{{ k.rif_norm }}" maxlength="100">
+    </label>
+    <label class="spunta largo"><input type="checkbox" name="bollo" value="1" {% if k.bollo %}checked{% endif %}>
+      Soggetto a bollo (oltre 77,47 € l'XML dichiara il bollo virtuale di 2 €)</label>
+  </div>
+  {% if uso %}<p class="aiuto">Usato da {{ uso }} {{ 'cliente o riga' if uso == 1 else 'clienti o righe' }}: se cambi il
+     codice vengono aggiornati anche loro; le fatture già inviate non cambiano.</p>{% endif %}
+  <div class="azioni orizzontali">
+    <button class="btn primario">Salva</button>
+    <a class="btn" href="{{ url_for('codici_iva') }}">Annulla</a>
+    {% if codice and not uso %}
+    <button class="btn testo pericolo" name="azione" value="elimina" formnovalidate
+            onclick="return confirm('Eliminare il codice {{ codice }}?')">Elimina</button>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

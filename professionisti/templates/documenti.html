@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block titolo %}{{ viste[vista] }}{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <h1>{% if vista in ('invio', 'incassare') %}{{ viste[vista] }}{% else %}{{ viste[vista] if vista != 'tutti' else 'Documenti' }} {{ anno }}{% endif %}</h1>
+  <form class="filtri" method="get">
+    <input type="hidden" name="vista" value="{{ vista }}">
+    {% if vista in ('tutti', 'sdi') %}
+    <label class="nascosto" for="anno">Anno</label>
+    <select id="anno" name="anno" onchange="this.form.submit()">
+      {% for a in anni %}<option value="{{ a }}" {% if a == anno %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <label class="nascosto" for="q">Cerca</label>
+    <input id="q" type="search" name="q" value="{{ cerca }}" placeholder="Cerca cliente, compagnia o numero">
+    {% if stato %}<input type="hidden" name="stato" value="{{ stato }}">{% endif %}
+  </form>
+  {% if PEC %}
+  <form method="post" action="{{ url_for('aggiorna_esiti') }}">
+    <input type="hidden" name="ritorno" value="{{ request.full_path }}">
+    <button class="btn">Aggiorna esiti SDI</button>
+  </form>
+  {% endif %}
+  <a class="btn" href="{{ url_for('documento_nuovo', tipo='TD04') }}">Nuova nota di credito</a>
+  <a class="btn" href="{{ url_for('documento_nuovo', tipo='AVV') }}">Nuovo avviso</a>
+</div>
+
+<nav class="viste" aria-label="Elenchi">
+  {% for k, etichetta in viste.items() %}
+  <a href="{{ url_for('documenti', vista=k, anno=anno, q=cerca or None) }}" {% if k == vista %}aria-current="page"{% endif %}>
+    {{ etichetta }}
+    {% if k == 'invio' and invio %}<b class="conta {% if urgenti %}urgente{% endif %}">{{ invio | length }}</b>{% endif %}
+    {% if k == 'incassare' and incasso %}<b class="conta">{{ incasso | length }}</b>{% endif %}
+    {% if k == 'avvisi' and avvisi_aperti %}<b class="conta">{{ avvisi_aperti }}</b>{% endif %}
+  </a>
+  {% endfor %}
+</nav>
+
+{% if somme and (somme.fatture or somme.note) %}
+<section class="somme-anno" aria-label="Totali {{ anno }}">
+  <div><span>{{ 'Compensi' if not O.iva else 'Onorari' }}</span><strong>{{ somme.onorari | euro }}</strong></div>
+  {% if somme.vendite %}<div><span>Vendite</span><strong>{{ somme.vendite | euro }}</strong></div>{% endif %}
+  <div><span>{{ C.CASSA.descrizione }} {{ C.CASSA.aliquota_perc }}% su {{ somme.base_cassa | euro }}</span><strong>{{ somme.cassa | euro }}</strong></div>
+  {% if O.iva %}<div><span>IVA</span><strong>{{ somme.iva | euro }}</strong></div>{% endif %}
+  {% if somme.bollo or somme.anticipazioni %}<div><span>Bolli e anticipazioni</span><strong>{{ (somme.bollo + somme.anticipazioni) | euro }}</strong></div>{% endif %}
+  {% if O.ritenuta %}<div><span>Ritenute subite</span><strong>{{ somme.ritenuta | euro }}</strong></div>{% endif %}
+  <div class="principale"><span>Totale fatturato</span><strong>{{ somme.totale | euro }}</strong></div>
+  {% if O.ritenuta and somme.ritenuta %}<div class="principale"><span>Netto dai clienti (totale meno ritenute)</span><strong>{{ (somme.totale - somme.ritenuta) | euro }}</strong></div>{% endif %}
+  <p class="aiuto">{{ somme.fatture }} {{ 'fattura' if somme.fatture == 1 else 'fatture' }}{% if somme.note %} e {{ somme.note }} {{ 'nota' if somme.note == 1 else 'note' }} di credito (sottratte){% endif %}
+     inviate allo SDI nel {{ anno }}; bozze e avvisi esclusi.</p>
+</section>
+{% endif %}
+
+{% if PEC and vista in ('invio', 'sdi') %}
+<p class="aiuto controllo-pec">Esiti dello SDI: il programma controlla la PEC da solo ogni 30 minuti
+  {%- if in_attesa %} ({{ in_attesa }} {{ 'fattura' if in_attesa == 1 else 'fatture' }} in attesa di esito){% else %}, quando ci sono fatture in attesa di esito (ora nessuna){% endif %}.
+  {% if ultimo_controllo %}Ultimo controllo: {{ ultimo_controllo | data_it }} alle {{ ultimo_controllo[11:16] }}.{% endif %}</p>
+{% endif %}
+
+{# ======================================================== da inviare (12 giorni) #}
+{% if vista == 'invio' %}
+<p class="aiuto">La fattura va trasmessa allo SDI entro {{ 12 }} giorni dalla sua data; dopo uno scarto, il nuovo invio
+   va fatto entro 5 giorni dalla notifica, con lo stesso numero e la stessa data. Elenco di tutti gli anni.</p>
+{% set pronte = invio | selectattr('d.stato', 'equalto', 'generata') | list %}
+{% if PEC and pronte | length > 1 %}
+<form method="post" action="{{ url_for('invia_tutte') }}" class="invio-multiplo"
+      onsubmit="return confirm('Inviare allo SDI i {{ pronte | length }} documenti pronti?')">
+  <button class="btn primario">Invia allo SDI i {{ pronte | length }} documenti pronti</button>
+  <span class="aiuto">Le bozze non partono: prima vanno generate.</span>
+</form>
+{% endif %}
+{% if invio %}
+<table class="elenco">
+  <thead><tr><th class="num">N.</th><th>Data</th><th>Cliente</th><th class="num">Totale</th><th>Stato</th><th>Inviare entro</th></tr></thead>
+  <tbody>
+  {% for x in invio %}{% set d = x.d %}
+    <tr class="{{ 'scaduta' if x.giorni < 0 else ('urgente' if x.giorni <= 3 else '') }}">
+      <td class="num"><a href="{{ url_for('documento', did=d.id) }}">{{ numero_breve(d) }}/{{ d.anno }}</a></td>
+      <td>{{ d.data | data_it }}</td>
+      <td><a class="riga-link" href="{{ url_for('documento', did=d.id) }}">{{ d.cliente or 'Cliente da scegliere' }}</a>
+          {% if d.tipo == 'TD04' %}<span class="tag">Nota di credito</span>{% endif %}</td>
+      <td class="num">{{ d.totale | euro }}{% if d.netto and d.netto != d.totale %}<span class="sotto">netto {{ d.netto | euro }}</span>{% endif %}</td>
+      <td><span class="chip s-{{ d.stato }}">{{ STATI[d.stato] }}</span></td>
+      <td class="scadenza">
+        {% if x.attesa %}
+        <strong>Nessun esito</strong>
+        <span class="sotto">inviata da {{ x.attesa }} giorni: controlla nel Monitoraggio del portale</span>
+        {% else %}
+        <strong>{{ x.limite.isoformat() | data_it }}</strong>
+        <span class="sotto">{% if x.giorni < 0 %}scaduta da {{ -x.giorni }} {{ 'giorno' if x.giorni == -1 else 'giorni' }}{% elif x.giorni == 0 %}scade oggi{% elif x.giorni == 1 %}manca 1 giorno{% else %}mancano {{ x.giorni }} giorni{% endif %}</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="vuoto"><p>Nessun documento da inviare: bozze, fatture pronte e scartate compaiono qui con la loro scadenza.</p></div>
+{% endif %}
+
+{# ======================================================== inviati allo SDI #}
+{% elif vista == 'sdi' %}
+{% if sdi %}
+<table class="elenco">
+  <thead><tr><th class="num">N.</th><th>Data</th><th>Cliente</th><th class="num">Totale</th><th>Inviata il</th><th>Esito</th><th>Identificativo SDI</th></tr></thead>
+  <tbody>
+  {% for d in sdi %}
+    <tr>
+      <td class="num"><a href="{{ url_for('documento', did=d.id) }}">{{ numero_breve(d) }}</a></td>
+      <td>{{ d.data | data_it }}</td>
+      <td><a class="riga-link" href="{{ url_for('documento', did=d.id) }}">{{ d.cliente }}</a>
+          {% if d.tipo == 'TD04' %}<span class="tag">Nota di credito</span>{% endif %}</td>
+      <td class="num">{{ d.totale | euro }}{% if d.netto and d.netto != d.totale %}<span class="sotto">netto {{ d.netto | euro }}</span>{% endif %}</td>
+      <td>{{ d.inviato_il | data_it }}{% if d.storico %}<span class="sotto">programma precedente</span>{% endif %}</td>
+      <td><span class="chip s-{{ d.stato }}">{{ STATI[d.stato] }}</span>
+          {% if d.stato == 'scartata' and d.esito_note %}<span class="sotto">{{ d.esito_note }}</span>{% endif %}</td>
+      <td>{{ d.id_sdi }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="vuoto"><p>Nessun documento inviato allo SDI nel {{ anno }}.</p></div>
+{% endif %}
+
+{# ======================================================== da incassare #}
+{% elif vista == 'incassare' %}
+{% if incasso %}
+<p class="riepilogo-incasso">Da incassare: <strong>{{ totale_incasso | euro }}</strong> su {{ incasso | length }} {{ 'fattura' if incasso | length == 1 else 'fatture' }}, al netto delle note di credito.</p>
+<table class="elenco">
+  <thead><tr><th class="num">N.</th><th>Data</th><th>Cliente</th><th class="num">Da incassare</th><th class="num">Giorni</th><th>Saldo ricevuto il</th></tr></thead>
+  <tbody>
+  {% for x in incasso %}{% set d = x.d %}
+    <tr>
+      <td class="num"><a href="{{ url_for('documento', did=d.id) }}">{{ numero_breve(d) }}/{{ d.anno }}</a></td>
+      <td>{{ d.data | data_it }}</td>
+      <td><a class="riga-link" href="{{ url_for('documento', did=d.id) }}">{{ d.cliente }}</a>
+          {% if d.terzo_pagatore %}<span class="sotto">Paga {{ d.terzo_pagatore }}</span>{% endif %}</td>
+      <td class="num">{{ x.residuo | euro }}{% if x.parziale %}<span class="sotto">su {{ (d.netto or d.totale) | euro }}{% if x.incassato %}, acconti {{ x.incassato | euro }}{% endif %}</span>{% endif %}</td>
+      <td class="num">{{ x.giorni }}</td>
+      <td>
+        <form method="post" action="{{ url_for('saldo', did=d.id) }}" class="saldo-veloce">
+          <input type="hidden" name="ritorno" value="{{ request.full_path }}">
+          <input type="date" name="saldato_il" value="{{ oggi }}" aria-label="Data del saldo">
+          <button class="btn piccolo" title="Registra l'incasso di quanto resta">Saldata</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="vuoto"><p>Nessuna fattura da incassare.</p></div>
+{% endif %}
+
+{# ======================================================== avvisi di fattura #}
+{% elif vista == 'avvisi' %}
+<p class="aiuto">Avvisi di fattura: numerazione propria, non vanno allo SDI. Quando il cliente paga, dall'avviso
+   si crea la fattura con il primo numero disponibile.</p>
+{% if avvisi %}
+<table class="elenco">
+  <thead><tr><th class="num">N.</th><th>Data</th><th>Cliente</th><th class="num">Totale</th><th>Stato</th></tr></thead>
+  <tbody>
+  {% for d in avvisi %}
+    <tr>
+      <td class="num"><a href="{{ url_for('documento', did=d.id) }}">{{ d.numero }}/{{ d.anno }}</a></td>
+      <td>{{ d.data | data_it }}</td>
+      <td><a class="riga-link" href="{{ url_for('documento', did=d.id) }}">{{ d.cliente or 'Cliente da scegliere' }}</a></td>
+      <td class="num">{{ d.totale | euro }}{% if d.netto and d.netto != d.totale %}<span class="sotto">netto {{ d.netto | euro }}</span>{% endif %}</td>
+      <td>{% if d.stato == 'bozza' %}<span class="da-pagare">In attesa di pagamento</span>
+          {% else %}{% set fa = fatture_da_avviso.get(d.collegato_id) %}<span class="pagato">Pagato il {{ d.saldato_il | data_it }}</span>
+          {% if fa %}<span class="sotto">fattura n. {{ fa.numero }}/{{ fa.anno }}</span>{% endif %}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="vuoto"><p>Nessun avviso di fattura.</p>
+  <a class="btn primario" href="{{ url_for('documento_nuovo', tipo='AVV') }}">Nuovo avviso</a></div>
+{% endif %}
+
+{# ======================================================== tutti #}
+{% else %}
+<div class="stati">
+  <a href="{{ url_for('documenti', anno=anno, q=cerca or None) }}" class="stato-filtro {% if not stato %}attivo{% endif %}">Tutti</a>
+  {% for k, etichetta in STATI.items() %}
+    {% if conteggi.get(k) %}
+    <a href="{{ url_for('documenti', anno=anno, q=cerca or None, stato=k) }}"
+       class="stato-filtro s-{{ k }} {% if stato == k %}attivo{% endif %}">{{ etichetta }} <b>{{ conteggi[k] }}</b></a>
+    {% endif %}
+  {% endfor %}
+</div>
+
+{% if elenco %}
+<table class="elenco">
+  <thead>
+    <tr><th class="num">N.</th><th>Data</th><th>Cliente</th><th class="num">Totale</th><th>Stato</th><th>Pagamento</th><th><span class="nascosto">Copia PDF</span></th></tr>
+  </thead>
+  <tbody>
+  {% for d in elenco %}
+    <tr>
+      <td class="num"><a href="{{ url_for('documento', did=d.id) }}">{{ numero_breve(d) }}</a></td>
+      <td>{{ d.data | data_it }}</td>
+      <td>
+        <a class="riga-link" href="{{ url_for('documento', did=d.id) }}">{{ d.cliente or 'Cliente da scegliere' }}</a>
+        {% if d.tipo == 'TD04' %}<span class="tag">Nota di credito</span>{% endif %}
+        {% if d.terzo_pagatore %}<span class="sotto">Paga {{ d.terzo_pagatore }}</span>{% endif %}
+      </td>
+      <td class="num">{{ d.totale | euro }}{% if d.netto and d.netto != d.totale %}<span class="sotto">netto {{ d.netto | euro }}</span>{% endif %}</td>
+      <td><span class="chip s-{{ d.stato }}">{{ STATI[d.stato] }}</span></td>
+      <td>
+        {% if d.tipo == 'TD01' and d.stato in EMESSE %}
+          {% if d.saldato %}<span class="pagato">Saldata{% if d.saldato_il %} il {{ d.saldato_il | data_it }}{% endif %}</span>
+          {% elif d.id in stornate %}<span class="tenue">Stornata</span>
+          {% elif d.id in acconti %}<span class="da-pagare">Pagata in parte</span>
+          {% else %}<span class="da-pagare">Da incassare</span>{% endif %}
+        {% endif %}
+      </td>
+      <td>{% if d.stato != 'bozza' and d.id in con_pdf %}<a class="link-pdf" href="{{ url_for('apri_pdf', did=d.id) }}" target="_blank" title="Apri la copia PDF">PDF</a>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% elif cerca or stato %}
+<div class="vuoto">
+  <p>Nessun documento corrisponde alla ricerca.</p>
+  <a class="btn" href="{{ url_for('documenti', anno=anno) }}">Mostra tutti i documenti del {{ anno }}</a>
+</div>
+{% else %}
+<div class="vuoto">
+  <h2>Nessun documento nel {{ anno }}</h2>
+  <p>Crea la prima fattura: il numero viene proposto in automatico e lo puoi cambiare.</p>
+  <a class="btn primario" href="{{ url_for('documento_nuovo') }}">Nuova fattura</a>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

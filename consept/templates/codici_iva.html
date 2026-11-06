@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titolo %}Codici IVA{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <h1>Codici IVA</h1>
+  <a class="btn" href="{{ url_for('codice_iva') }}">Nuovo codice IVA</a>
+</div>
+<p class="aiuto">Ogni riga di fattura ha un codice IVA: se non lo scegli vale quello del cliente, altrimenti
+   {{ C.CODICE_IVA_PREDEFINITO }}. Per le righe senza IVA il codice dice la natura e il riferimento normativo
+   che va in fattura; «Bollo» indica le operazioni per cui oltre 77,47 € l'XML dichiara il bollo virtuale.</p>
+<table class="elenco">
+  <thead><tr><th>Codice</th><th>Descrizione</th><th class="num">IVA</th><th>Natura</th><th>Riferimento normativo</th><th>Bollo</th><th class="num">In uso</th></tr></thead>
+  <tbody>
+  {% for k in elenco %}
+    <tr>
+      <td><a class="riga-link" href="{{ url_for('codice_iva', codice=k.codice) }}"><strong>{{ k.codice }}</strong></a></td>
+      <td>{{ k.descrizione }}</td>
+      <td class="num">{{ k.aliquota }}%</td>
+      <td>{{ k.natura or '–' }}</td>
+      <td>{{ k.rif_norm or '–' }}</td>
+      <td>{{ 'Sì' if k.bollo else 'No' }}</td>
+      <td class="num tenue">{{ uso[k.codice] or '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

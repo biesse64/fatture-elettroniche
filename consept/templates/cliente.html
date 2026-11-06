@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_campi_cliente.html" import campi_cliente with context %}
+{% block titolo %}{{ c.denominazione or 'Nuovo cliente' }}{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <div>
+    <a class="indietro" href="{{ url_for('clienti') }}">Clienti</a>
+    <h1>{{ c.denominazione if cid else 'Nuovo cliente' }}</h1>
+    {% if c.codice %}<p class="sotto-titolo">Codice cliente {{ c.codice }}</p>{% endif %}
+  </div>
+</div>
+{% if errori %}
+<div class="messaggi" role="alert">{% for e in errori %}<p class="msg errore">{{ e }}</p>{% endfor %}</div>
+{% endif %}
+<form method="post" class="blocco stretto">
+  {{ campi_cliente(c, codici) }}
+  <p class="aiuto">Per i privati italiani basta il codice fiscale. Per i clienti esteri l'XML usa il codice
+     destinatario XXXXXXX: la fattura va comunque mandata al cliente via email.</p>
+  <div class="azioni orizzontali">
+    <button class="btn primario">Salva cliente</button>
+    <a class="btn" href="{{ url_for('clienti') }}">Annulla</a>
+    {% if cid and not n_doc %}
+    <button class="btn testo pericolo" form="form-elimina">Elimina cliente</button>
+    {% endif %}
+  </div>
+  {% if n_doc %}<p class="aiuto">{{ n_doc }} {{ 'documento collegato' if n_doc == 1 else 'documenti collegati' }}.</p>{% endif %}
+</form>
+{% if cid and not n_doc %}
+<form id="form-elimina" method="post" action="{{ url_for('elimina_cliente', cid=cid) }}"
+      onsubmit="return confirm('Eliminare questo cliente?')"></form>
+{% endif %}
+{% endblock %}

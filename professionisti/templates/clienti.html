@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titolo %}Clienti{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <h1>Clienti</h1>
+  <form class="filtri" method="get">
+    <label class="nascosto" for="q">Cerca</label>
+    <input id="q" type="search" name="q" value="{{ cerca }}" placeholder="Cerca per nome, codice fiscale o partita IVA">
+  </form>
+  <a class="btn" href="{{ url_for('cliente') }}">Nuovo cliente</a>
+</div>
+
+{% if elenco %}
+<table class="elenco">
+  <thead><tr><th>Cliente</th><th>Codice fiscale o P.IVA</th><th>Comune</th><th>Riceve la fattura</th><th></th></tr></thead>
+  <tbody>
+  {% for c in elenco %}
+    <tr>
+      <td><a class="riga-link" href="{{ url_for('cliente', cid=c.id) }}">{{ c.denominazione }}</a>
+          {% if privato(c) %}<span class="tag">Privato</span>{% endif %}</td>
+      <td>{{ c.piva or c.cf }}</td>
+      <td>{{ c.comune }}{% if c.provincia %} ({{ c.provincia }}){% endif %}</td>
+      <td>{% if c.codice_destinatario and c.codice_destinatario != '0000000' %}Codice {{ c.codice_destinatario }}{% elif c.pec %}PEC{% else %}Area riservata AdE{% endif %}</td>
+      <td class="num"><a class="btn piccolo" href="{{ url_for('documento_nuovo', cliente=c.id) }}">Nuova fattura</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% elif cerca %}
+<div class="vuoto"><p>Nessun cliente corrisponde a «{{ cerca }}».</p>
+  <a class="btn" href="{{ url_for('clienti') }}">Mostra tutti</a></div>
+{% else %}
+<div class="vuoto">
+  <h2>Archivio clienti vuoto</h2>
+  <p>Aggiungi i clienti uno alla volta, oppure dal modulo della fattura con Nuovo cliente.
+     </p>
+  <a class="btn primario" href="{{ url_for('cliente') }}">Nuovo cliente</a>
+</div>
+{% endif %}
+{% endblock %}

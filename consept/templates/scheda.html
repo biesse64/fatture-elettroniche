@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% set nc = doc.tipo == 'TD04' %}
+{% block titolo %}{{ nome_documento(doc) }}{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <div>
+    <a class="indietro" href="{{ url_for('documenti', anno=doc.anno) }}">Documenti {{ doc.anno }}</a>
+    <h1>{{ nome_documento(doc) }}</h1>
+  </div>
+  <span class="chip s-{{ doc.stato }}">{{ STATI[doc.stato] }}</span>
+</div>
+
+<div class="editor">
+  <div class="colonna-modulo">
+
+    {% if doc.storico %}
+    <section class="blocco">
+      <h2>Invio allo SDI</h2>
+      <p>{{ doc.esito_note or 'Inviata con il programma precedente' }}; importata in questo programma come
+         <strong>{{ STATI[doc.stato] | lower }}</strong>{% if doc.id_sdi %}, identificativo SDI {{ doc.id_sdi }}{% endif %}.
+         La copia PDF e l'XML originali sono nel programma precedente e sul portale Fatture e Corrispettivi.</p>
+    </section>
+    {% else %}
+    {# ---------------- percorso di invio: i passi sono davvero in sequenza #}
+    <section class="blocco percorso">
+      <h2>Invio allo SDI</h2>
+      <ol class="passi">
+        <li class="fatto">
+          <h3>Generata</h3>
+          <p>Il {{ doc.generato_il | data_it }} alle {{ doc.generato_il[11:16] }}, file <code>{{ xml.name if xml else '' }}</code></p>
+        </li>
+
+        <li class="{{ 'fatto' if doc.stato != 'generata' else 'adesso' }}">
+          <h3>{{ 'Invia allo SDI' if PEC else 'Caricala sul portale' }}</h3>
+          {% if doc.stato == 'generata' %}
+          {% if PEC %}
+          <p>Il file XML parte con una PEC dalla casella {{ C.PEC.indirizzo }} al Sistema di Interscambio.</p>
+          <form method="post" action="{{ url_for('invia_pec', did=doc.id) }}" class="dopo"
+                onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Invio in corso…'">
+            <button class="btn primario">Invia allo SDI</button>
+          </form>
+          <details class="alternativa">
+            <summary>Oppure caricala a mano sul portale</summary>
+          {% endif %}
+          <p>Accedi con lo SPID a Fatture e Corrispettivi, scegli <i>Fatture elettroniche</i>, poi
+             <i>Trasmissione</i>, e carica il file XML.</p>
+          <div class="in-linea">
+            {% if mac %}
+            <form method="post" action="{{ url_for('mostra_file', did=doc.id) }}">
+              <button class="btn">Mostra il file XML nel Finder</button>
+            </form>
+            {% else %}
+            <a class="btn" href="{{ url_for('scarica_xml', did=doc.id) }}">Scarica il file XML</a>
+            {% endif %}
+            <a class="btn" href="{{ C.PORTALE_ADE }}" target="_blank" rel="noopener">Apri il portale</a>
+          </div>
+          <p class="aiuto">Cartella: <code>{{ xml.parent if xml else '' }}</code></p>
+          <form method="post" action="{{ url_for('cambia_stato', did=doc.id) }}" class="dopo">
+            <input type="hidden" name="azione" value="inviata">
+            <button class="btn {{ '' if PEC else 'primario' }}">Ho caricato il file</button>
+          </form>
+          {% if PEC %}</details>{% endif %}
+          {% else %}
+          <p>Inviata il {{ doc.inviato_il | data_it }}{% if doc.inviato_il[11:16] %} alle {{ doc.inviato_il[11:16] }}{% endif %}{% if doc.esito_note and doc.esito_note.startswith('PEC a') %}, via PEC a {{ doc.esito_note[6:] }}{% endif %}.</p>
+          {% endif %}
+        </li>
+
+        <li class="{{ 'adesso' if doc.stato == 'inviata' else ('fatto' if doc.stato in ('consegnata', 'mancata', 'scartata') else '') }}">
+          <h3>Esito dello SDI</h3>
+          {% if doc.stato in ('consegnata', 'mancata') %}
+            <p><strong>{{ STATI[doc.stato] }}</strong> il {{ doc.esito_il | data_it }}{% if doc.id_sdi %}, identificativo SDI {{ doc.id_sdi }}{% endif %}.
+            {% if doc.stato == 'mancata' %}Emessa e valida: lo SDI l'ha messa nell'area riservata del cliente sul sito dell'Agenzia delle Entrate (per i privati, o per chi non ha codice destinatario né PEC, è l'esito normale). Mandagli la copia PDF.{% else %}Il documento è emesso.{% endif %}</p>
+            {% if doc.esito_note %}<p class="aiuto">{{ doc.esito_note }}</p>{% endif %}
+          {% elif doc.stato == 'scartata' %}
+            <p><strong>Scartata</strong> il {{ doc.esito_il | data_it }}. Il documento non è emesso: correggi e generalo di nuovo
+               con lo stesso numero.</p>
+            {% if doc.esito_note %}<p class="motivo">{{ doc.esito_note }}</p>{% endif %}
+            <form method="post" action="{{ url_for('cambia_stato', did=doc.id) }}">
+              <input type="hidden" name="azione" value="bozza">
+              <button class="btn primario">Correggi</button>
+            </form>
+          {% elif doc.stato == 'inviata' %}
+            {% if PEC %}
+            <p>Lo SDI risponde con una PEC, di solito entro qualche ora. Il programma controlla la casella da solo
+               ogni 30 minuti; per controllare subito:</p>
+            <form method="post" action="{{ url_for('aggiorna_esiti') }}" class="dopo">
+              <input type="hidden" name="ritorno" value="{{ request.path }}">
+              <button class="btn primario">Aggiorna esiti SDI</button>
+            </form>
+            {% else %}
+            <p>Di solito arriva in pochi minuti. La trovi nel portale, in <i>Monitoraggio delle fatture</i>.</p>
+            {% endif %}
+          {% else %}
+            <p class="tenue">{{ "Dopo l'invio." if PEC else "Dopo il caricamento." }}</p>
+          {% endif %}
+
+          {% if doc.stato == 'inviata' %}
+          {% if PEC %}<details class="alternativa"><summary>Registra l'esito a mano</summary>{% endif %}
+          <form method="post" action="{{ url_for('cambia_stato', did=doc.id) }}" class="esito">
+            <input type="hidden" name="azione" value="esito">
+            <fieldset>
+              <legend>Esito</legend>
+              <label class="scelta"><input type="radio" name="esito" value="consegnata" required> Consegnata</label>
+              <label class="scelta"><input type="radio" name="esito" value="mancata"> Consegnata nel cassetto fiscale <small>(ricevuta di mancata consegna: normale per i privati)</small></label>
+              <label class="scelta"><input type="radio" name="esito" value="scartata"> Scartata</label>
+            </fieldset>
+            <div class="griglia">
+              <label>Identificativo SDI <small>facoltativo</small><input name="id_sdi"></label>
+              <label>Note <small>per lo scarto: il motivo</small><input name="esito_note"></label>
+            </div>
+            <button class="btn {{ '' if PEC else 'primario' }}">Registra l'esito</button>
+          </form>
+          {% if PEC %}</details>{% endif %}
+          {% endif %}
+        </li>
+      </ol>
+    </section>
+    {% endif %}
+
+    <section class="blocco">
+      <h2>Cliente</h2>
+      {% if cli %}
+      <p><a href="{{ url_for('cliente', cid=cli.id) }}"><strong>{{ cli.denominazione }}</strong></a><br>
+         {{ cli.indirizzo }}, {{ cli.cap }} {{ cli.comune }}{% if cli.provincia %} ({{ cli.provincia }}){% endif %}<br>
+         {% if cli.piva %}P.IVA {{ cli.piva }}{% endif %}{% if cli.cf and cli.cf != cli.piva %}{% if cli.piva %}, {% endif %}C.F. {{ cli.cf }}{% endif %}</p>
+      {% if cli.email %}<p class="aiuto">Email per la copia PDF: <a href="mailto:{{ cli.email }}">{{ cli.email }}</a></p>{% endif %}
+      {% endif %}
+      {% if doc.terzo_pagatore %}<p>{{ C.TESTO_TERZO.format(terzo=doc.terzo_pagatore) }}</p>{% endif %}
+      {% if nc %}<p>Storna la fattura n. {{ doc.rif_numero }}{% if doc.rif_data %} del {{ doc.rif_data | data_it }}{% endif %}.</p>{% endif %}
+      {% if doc.note %}<div class="testo-ricco">{{ doc.note | ricco }}</div>{% endif %}
+    </section>
+
+    <section class="blocco">
+      <h2>Voci</h2>
+      {% if not f %}
+      {% set con_importo = righe | selectattr('importo') | list %}
+      {% if con_importo %}
+      <table class="voci sola-lettura">
+        <tbody>
+        {% for r in righe %}{% if r.descrizione or r.importo %}
+          <tr><td class="descr">{{ r.descrizione | ricco }}</td>
+              <td class="num tenue">{% if r.quantita %}{{ r.quantita | quantita }} {{ r.um }} × {{ r.prezzo | euro }}{% endif %}</td>
+              <td class="num tenue">{{ r.codice_iva }}</td>
+              <td class="num">{% if r.importo %}{{ r.importo | euro }}{% endif %}</td></tr>
+        {% endif %}{% endfor %}
+        </tbody>
+      </table>
+      <p class="aiuto">Documento del programma precedente: voci e totali come registrati allora.</p>
+      {% else %}
+      <p class="tenue">Documento importato dall'elenco del programma precedente: qui ci sono solo i totali,
+         il dettaglio delle voci è nel programma precedente.</p>
+      {% endif %}
+      {% else %}
+      <table class="voci sola-lettura">
+        <tbody>
+        {% for r in f.righe %}
+          <tr><td>{{ r.descr | ricco }}{% if not r.descrittiva and r.qta is not none and r.qta != 1 %}<span class="sotto">{{ r.qta | quantita }} {{ r.um }} × {{ r.prezzo | euro }}</span>{% endif %}</td>
+              <td class="num tenue">{% if not r.descrittiva %}{{ r.codice }}{% endif %}</td>
+              <td class="num">{% if not r.descrittiva %}{{ r.totale | euro }}{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if doc.valuta %}<p class="aiuto">Copia per il cliente in {{ doc.valuta }}: totale {{ totale_valuta | valuta(doc.valuta) }}
+         al cambio 1 {{ doc.valuta }} = {{ doc.cambio | replace('.', ',') }} EUR.</p>{% endif %}
+      {% endif %}
+    </section>
+
+    {% if collegate %}
+    <section class="blocco">
+      <h2>Note di credito collegate</h2>
+      <ul class="semplice">
+        {% for n in collegate %}<li><a href="{{ url_for('documento', did=n.id) }}">{{ nome_documento(n) }}</a>, {{ STATI[n.stato] | lower }}</li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="colonna-conto">
+    {% if tot %}
+    <div class="conto">
+      <h2>Riepilogo</h2>
+      <table class="gruppi-iva"><tbody>
+        {% for g in tot.gruppi %}
+        <tr><td>{{ g.rif_norm if g.natura else 'IVA ' ~ (g.aliquota | quantita) ~ '%' }}</td><td class="num">{{ g.imponibile | euro }}</td><td class="num">{{ g.imposta | euro }}</td></tr>
+        {% endfor %}
+      </tbody></table>
+      <dl>
+        <div><dt>Imponibile</dt><dd>{{ tot.imponibile | euro }}</dd></div>
+        <div><dt>IVA</dt><dd>{{ tot.iva | euro }}</dd></div>
+      </dl>
+      <p class="totale"><span>Totale</span> <strong>{{ tot.totale | euro }}</strong></p>
+      {% if doc.valuta %}<p class="totale-usd"><span>Copia per il cliente</span> <strong>{{ totale_valuta | valuta(doc.valuta) }}</strong></p>{% endif %}
+      {% if tot.scadenze and not nc %}
+      <h3>Scadenze</h3>
+      <ul class="scadenze">{% for d, imp in tot.scadenze %}<li>{{ d | data_it }}: {{ imp | euro }}</li>{% endfor %}</ul>
+      <p class="aiuto">{{ tot.pagamento.nome if tot.pagamento else '' }}{% if tot.banca %}, {{ tot.banca.nome }}{% endif %}</p>
+      {% endif %}
+      {% if tot.bollo_dovuto %}<p class="aiuto">Bollo virtuale dichiarato nell'XML.</p>{% endif %}
+    </div>
+    {% else %}
+    <div class="conto">
+      <h2>Riepilogo</h2>
+      {% if doc.netto and doc.netto != doc.totale %}
+      <dl><div><dt>Totale documento</dt><dd>{{ doc.totale | euro }}</dd></div></dl>
+      <p class="totale"><span>Netto a pagare</span> <strong>{{ doc.netto | euro }}</strong></p>
+      {% else %}
+      {% if doc.imponibile %}
+      <dl><div><dt>Imponibile</dt><dd>{{ doc.imponibile | euro }}</dd></div>
+          <div><dt>IVA</dt><dd>{{ doc.iva | euro }}</dd></div></dl>
+      {% endif %}
+      <p class="totale"><span>Totale</span> <strong>{{ doc.totale | euro }}</strong></p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if not nc %}
+    <div class="pagamento {{ 'saldata' if doc.saldato else '' }}">
+      <h2>Pagamento</h2>
+      {% if doc.saldato %}
+        <p><strong>Saldata</strong>{% if doc.saldato_il %} il {{ doc.saldato_il | data_it }}{% else %} <span class="tenue">(data non registrata)</span>{% endif %}</p>
+      {% elif pag and pag.incassi %}
+        <p><strong class="da-pagare">Restano {{ pag.residuo | euro }}</strong> <span class="tenue">su {{ pag.dovuto | euro }}</span></p>
+      {% else %}
+        <p><strong class="da-pagare">Da incassare</strong>{% if pag %} {{ pag.residuo | euro }}{% endif %}</p>
+      {% endif %}
+
+      {% if pag and pag.incassi %}
+      <ul class="incassi">
+        {% for i in pag.incassi %}
+        <li><span>{{ i.data | data_it }}</span> <span class="num">{{ i.importo | euro }}</span>
+          <form method="post" action="{{ url_for('saldo', did=doc.id) }}" onsubmit="return confirm('Togliere questo incasso?')">
+            <input type="hidden" name="azione" value="togli"><input type="hidden" name="incasso" value="{{ i.id }}">
+            <button class="togli" aria-label="Togli l'incasso del {{ i.data | data_it }}">&times;</button>
+          </form>
+          {% if i.note %}<small class="tenue">{{ i.note }}</small>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if not doc.saldato %}
+        <form method="post" action="{{ url_for('saldo', did=doc.id) }}" class="incasso">
+          <div class="in-linea">
+            <label class="nascosto" for="saldato_il">Data dell'incasso</label>
+            <input type="date" id="saldato_il" name="saldato_il" value="{{ oggi }}">
+            <label class="nascosto" for="importo-incasso">Importo incassato</label>
+            <input id="importo-incasso" name="importo" inputmode="decimal" class="corto"
+                   value="{{ pag.residuo | importo_campo if pag else '' }}" aria-describedby="aiuto-incasso">
+          </div>
+          <button class="btn">Registra incasso</button>
+          <p class="aiuto" id="aiuto-incasso">Con l'importo intero la fattura risulta saldata; per un acconto scrivi
+             quanto hai ricevuto.</p>
+        </form>
+      {% else %}
+        <details>
+          <summary>Correggi il saldo</summary>
+          {% if not (pag and pag.incassi) %}
+          <form method="post" action="{{ url_for('saldo', did=doc.id) }}" class="in-linea">
+            <input type="hidden" name="azione" value="data">
+            <input type="date" name="saldato_il" value="{{ doc.saldato_il or oggi }}" aria-label="Data del saldo">
+            <button class="btn piccolo">Salva data</button>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('saldo', did=doc.id) }}">
+            <input type="hidden" name="azione" value="annulla">
+            <button class="btn testo pericolo">Annulla il saldo: torna da incassare</button>
+          </form>
+        </details>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="azioni">
+      {% if pdf or pdf_ricostruito %}<a class="btn primario" href="{{ url_for('apri_pdf', did=doc.id) }}" target="_blank">Apri la copia PDF</a>{% endif %}
+      {% if pdf_valuta %}<a class="btn" href="{{ url_for('apri_pdf', did=doc.id, copia='valuta') }}" target="_blank">Apri la copia in {{ doc.valuta }}</a>{% endif %}
+      {% if f or righe | selectattr('importo') | list %}<a class="btn" href="{{ url_for('documento_nuovo', copia=doc.id) }}">Duplica {{ 'nota di credito' if nc else 'fattura' }}</a>{% endif %}
+      {% if doc.stato in ('consegnata', 'mancata') and not nc %}
+      <a class="btn" href="{{ url_for('documento_nuovo', tipo='TD04', da=doc.id) }}">Crea nota di credito</a>
+      {% endif %}
+      {% if doc.stato == 'generata' %}
+      <form method="post" action="{{ url_for('cambia_stato', did=doc.id) }}"
+            onsubmit="return confirm('Riportare il documento in bozza? Usalo solo se NON l\'hai ancora caricato sul portale.')">
+        <input type="hidden" name="azione" value="bozza">
+        <button class="btn testo">Torna in bozza per correggere</button>
+      </form>
+      {% endif %}
+      {% if doc.stato in ('consegnata', 'mancata', 'scartata') %}
+      <details class="correggi-esito">
+        <summary>Correggi l'esito</summary>
+        <form method="post" action="{{ url_for('cambia_stato', did=doc.id) }}">
+          <input type="hidden" name="azione" value="esito">
+          <select name="esito" aria-label="Esito">
+            {% for k in ('consegnata', 'mancata', 'scartata') %}<option value="{{ k }}" {% if k == doc.stato %}selected{% endif %}>{{ STATI[k] }}</option>{% endfor %}
+          </select>
+          <input name="id_sdi" value="{{ doc.id_sdi }}" placeholder="Identificativo SDI" aria-label="Identificativo SDI">
+          <input name="esito_note" value="{{ doc.esito_note }}" placeholder="Note" aria-label="Note">
+          <button class="btn">Salva</button>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+    {% if pdf_ricostruito and doc.storico %}
+    <p class="aiuto">Fattura del programma precedente: la copia PDF è ricostruita dai dati in archivio, con
+       l'impaginazione attuale.</p>
+    {% elif not pdf and not pdf_ricostruito and doc.stato != 'bozza' %}
+    <p class="aiuto">Importata con i soli totali, senza le voci: la copia PDF è nell'archivio del programma precedente.</p>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

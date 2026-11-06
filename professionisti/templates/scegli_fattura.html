@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titolo %}Nuova nota di credito{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <div>
+    <a class="indietro" href="{{ url_for('documenti') }}">Documenti</a>
+    <h1>Nuova nota di credito</h1>
+  </div>
+  <form class="filtri" method="get">
+    <label class="nascosto" for="q">Cerca</label>
+    <input id="q" type="search" name="q" value="{{ cerca }}" placeholder="Cerca cliente, compagnia o numero" autofocus>
+  </form>
+</div>
+<p class="aiuto">Scegli la fattura da stornare: la nota di credito ne riprende cliente, voci e importi.
+   Per uno storno parziale, dopo, riduci o togli le voci.</p>
+
+{% if fatture %}
+<table class="elenco">
+  <thead><tr><th class="num">N.</th><th>Data</th><th>Cliente</th><th class="num">Totale</th><th></th></tr></thead>
+  <tbody>
+  {% for x in fatture %}{% set d = x.d %}
+    <tr>
+      <td class="num">{{ numero_breve(d) }}/{{ d.anno }}</td>
+      <td>{{ d.data | data_it }}</td>
+      <td>{{ d.cliente }}
+          {% if d.terzo_pagatore %}<span class="sotto">Paga {{ d.terzo_pagatore }}</span>{% endif %}
+          {% if x.stornato %}<span class="sotto">Già stornati {{ x.stornato | euro }}</span>{% endif %}</td>
+      <td class="num">{{ d.totale | euro }}</td>
+      <td class="num">
+        {% if x.tutta %}<span class="tenue">Già stornata</span>
+        {% else %}<a class="btn piccolo" href="{{ url_for('documento_nuovo', tipo='TD04', da=d.id) }}">Crea nota di credito</a>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="vuoto"><p>Nessuna fattura emessa corrisponde alla ricerca.</p></div>
+{% endif %}
+<p class="aiuto"><a href="{{ url_for('documento_nuovo', tipo='TD04', libera=1) }}">Nota di credito senza partire da una fattura</a></p>
+{% endblock %}

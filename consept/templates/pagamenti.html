@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block titolo %}Pagamenti e banche{% endblock %}
+{% block contenuto %}
+<div class="intestazione-pagina">
+  <h1>Pagamenti e banche</h1>
+</div>
+
+<section class="sezione">
+  <div class="intestazione-sezione">
+    <h2>Banche</h2>
+    <a class="btn" href="{{ url_for('banca') }}">Nuova banca</a>
+  </div>
+  <p class="aiuto">La banca predefinita di ogni valuta viene proposta in fattura; per le fatture con copia in
+     dollari si propone quella in USD.</p>
+  <table class="elenco">
+    <thead><tr><th>Banca</th><th>Valuta</th><th>IBAN o coordinate</th><th>BIC/SWIFT</th><th></th></tr></thead>
+    <tbody>
+    {% for b in banche %}
+      <tr>
+        <td><a class="riga-link" href="{{ url_for('banca', bid=b.id) }}">{{ b.nome }}</a></td>
+        <td>{{ b.valuta }}</td>
+        <td>{% if b.iban %}{{ b.iban }}{% else %}<span class="tenue">{{ b.dettagli.split('\n')[-2:] | join(' · ') }}</span>{% endif %}</td>
+        <td>{{ b.bic }}</td>
+        <td>{% if b.predefinita %}<span class="tag">Predefinita {{ b.valuta }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="sezione">
+  <div class="intestazione-sezione">
+    <h2>Condizioni di pagamento</h2>
+    <a class="btn" href="{{ url_for('pagamento') }}">Nuovo pagamento</a>
+  </div>
+  <p class="aiuto">Le scadenze si calcolano dalla data della fattura; «fine mese» sposta ogni scadenza all'ultimo
+     giorno del mese. Con più rate (es. 30,60,90) l'importo viene diviso in parti uguali.
+     Standard per i clienti senza un pagamento loro: {{ C.PAGAMENTO_PREDEFINITO }}.</p>
+  <table class="elenco">
+    <thead><tr><th>Nome</th><th>Modalità</th><th>Scadenze</th></tr></thead>
+    <tbody>
+    {% for p in pagamenti %}
+      <tr>
+        <td><a class="riga-link" href="{{ url_for('pagamento', pid=p.id) }}">{{ p.nome }}</a></td>
+        <td>{{ modalita.get(p.modalita, p.modalita) }} <span class="tenue">{{ p.modalita }}</span></td>
+        <td>{% if p.giorni == '0' %}a vista{% else %}{{ p.giorni.replace(',', ' / ') }} giorni{% endif %}{% if p.fine_mese %} fine mese{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
