@@ -245,6 +245,13 @@ dialog::backdrop { background: rgba(30, 32, 40, .45); }
 .da-pagare { color: #7A5000; font-size: .9rem; font-weight: 600; }
 .riepilogo-incasso { font-size: 1.05rem; margin: 0 0 .8rem; }
 .riepilogo-incasso strong { font-family: var(--serif); font-size: 1.35rem; }
+.riepilogo-scelte { margin: -.4rem 0 .8rem; color: var(--tenue); }
+.riepilogo-scelte strong { color: var(--inchiostro); font-family: var(--serif); font-size: 1.15rem; }
+.riepilogo-scelte button { font: inherit; font-size: .85rem; margin-left: .5rem; padding: .1rem .5rem; color: var(--tenue);
+  background: none; border: 1px solid var(--linea); border-radius: 4px; cursor: pointer; }
+.elenco.incasso .spunta { display: inline-flex; align-items: center; margin-right: .45rem; vertical-align: -2px; cursor: pointer; }
+.elenco.incasso .spunta input { width: 1rem; height: 1rem; margin: 0; cursor: pointer; }
+.elenco.incasso tr.scelta td { background: #FFF8E6; }
 .saldo-veloce { display: flex; gap: .4rem; align-items: center; }
 .saldo-veloce input { width: auto; padding: .3rem .4rem; }
 .pagamento { background: var(--carta); border: 1px solid var(--linea); border-radius: 8px; padding: 1rem 1.3rem; margin-top: 1rem; }

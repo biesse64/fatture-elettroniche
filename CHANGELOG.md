@@ -1,5 +1,11 @@
 # Modifiche
 
+## 1.1 — 19 novembre 2026
+
+- Da incassare: casella di spunta su ogni fattura (e in intestazione per selezionarle tutte) con il
+  totale delle sole fatture scelte, per stimare gli incassi vicini. La scelta resta ricordata sul Mac
+  anche dopo aver registrato un saldo; le fatture saldate escono dall'elenco da sole.
+
 ## 1.0 — 6 novembre 2026
 
 Prima versione nel repository: il codice in uso sui Mac a questa data.

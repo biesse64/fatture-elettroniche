@@ -122,12 +122,13 @@
 {% elif vista == 'incassare' %}
 {% if incasso %}
 <p class="riepilogo-incasso">Da incassare: <strong>{{ totale_incasso | euro }}</strong> su {{ incasso | length }} {{ 'fattura' if incasso | length == 1 else 'fatture' }}, al netto delle note di credito.</p>
-<table class="elenco">
-  <thead><tr><th class="num">N.</th><th>Data</th><th>Cliente</th><th class="num">Da incassare</th><th class="num">Giorni</th><th>Saldo ricevuto il</th></tr></thead>
+<p class="riepilogo-scelte" id="scelte" aria-live="polite">Spunta le fatture che pensi di incassare a breve per vederne il totale.</p>
+<table class="elenco incasso">
+  <thead><tr><th class="num"><label class="spunta" title="Seleziona tutte / nessuna"><input type="checkbox" id="scegli-tutte" aria-label="Seleziona tutte le fatture"></label>N.</th><th>Data</th><th>Cliente</th><th class="num">Da incassare</th><th class="num">Giorni</th><th>Saldo ricevuto il</th></tr></thead>
   <tbody>
   {% for x in incasso %}{% set d = x.d %}
-    <tr>
-      <td class="num"><a href="{{ url_for('documento', did=d.id) }}">{{ numero_breve(d) }}/{{ d.anno }}</a></td>
+    <tr data-id="{{ d.id }}" data-residuo="{{ x.residuo }}">
+      <td class="num"><label class="spunta"><input type="checkbox" class="scegli" aria-label="Seleziona la fattura {{ numero_breve(d) }}/{{ d.anno }}"></label><a href="{{ url_for('documento', did=d.id) }}">{{ numero_breve(d) }}/{{ d.anno }}</a></td>
       <td>{{ d.data | data_it }}</td>
       <td><a class="riga-link" href="{{ url_for('documento', did=d.id) }}">{{ d.cliente }}</a>
           {% if d.terzo_pagatore %}<span class="sotto">Paga {{ d.terzo_pagatore }}</span>{% endif %}</td>
@@ -230,3 +231,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
+{% block script %}{% if vista == 'incassare' %}<script src="{{ url_for('static', filename='incasso.js') }}"></script>{% endif %}{% endblock %}
